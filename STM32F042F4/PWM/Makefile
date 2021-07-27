@@ -10,7 +10,8 @@ OC = arm-none-eabi-objcopy
 OD = arm-none-eabi-objdump
 OS = arm-none-eabi-size
 
-INCLUDE_PATHS = -I/home/andre/STM32/STM32F0/STM32CubeF0/Drivers/CMSIS/Device/ST/STM32F0xx/Include -I/home/andre/STM32/STM32F0/STM32CubeF0/Drivers/CMSIS/Include
+
+INCLUDE_PATHS = -I/home/andre/gitRepos/STM32CubeF0/Drivers/CMSIS/Device/ST/STM32F0xx/Include -I/home/andre/gitRepos/STM32CubeF0/Drivers/CMSIS/Include
 
 CFLAGS = -Wall -mcpu=$(MCU_SPEC) -mthumb -g -fmessage-length=0 --specs=nosys.specs $(INCLUDE_PATHS)
 ASFLAGS = -c -O0 -mcpu=$(MCU_SPEC) -mthumb -Wall -fmessage-length=0

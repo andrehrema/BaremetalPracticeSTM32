@@ -75,7 +75,7 @@ void ConfigureTIM14()
 
     TIM14->PSC = 7; // Pre scaler
     TIM14->ARR = 1000-1; // auto reload value
-    TIM14->CCR1 = 2-1; // capture compare register
+    TIM14->CCR1 = 700-1; // capture compare register
     TIM14->CCMR1 |= TIM_CCMR1_OC1M_2 + TIM_CCMR1_OC1M_1 + TIM_CCMR1_OC1PE;
     TIM14->CCER |= TIM_CCER_CC1E; //capture compare enable
     // Timer 14 has only one channel, so it is not necessary to specify

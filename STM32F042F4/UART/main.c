@@ -24,18 +24,24 @@ void ConfigPinAF()
     RCC->AHBENR |= RCC_AHBENR_GPIOAEN;
     __DSB();
 
-    GPIOA->MODER |= GPIO_MODER_MODER2_1 + GPIO_MODER_MODER3_1;
-    GPIOA->AFR[0] |= (BIT1 << GPIO_AFRL_AFSEL2_Pos) + (BIT1 << GPIO_AFRL_AFSEL3_Pos);
+    GPIOA->MODER |= GPIO_MODER_MODER2_1 | GPIO_MODER_MODER3_1;
+    GPIOA->AFR[0] |= (1 << GPIO_AFRL_AFSEL2_Pos) | (1 << GPIO_AFRL_AFSEL3_Pos);
+
+
+    // pins 4 and 5 in output mode
+    GPIOA->MODER |= GPIO_MODER_MODER4_0 | GPIO_MODER_MODER5_0;
+    GPIOA->PUPDR |= 512 | 2048;
 }
 
 
 void SetUARTInterruption()
 {
-    NVIC_EnableIRQ(USART2_IRQn);
-    NVIC_SetPriority(USART2_IRQn, 2);
-
     // enable receiver and transmitter interruptions
-    USART2->CR1 |= USART_CR1_RXNEIE + USART_CR1_TXEIE;
+    //USART2->CR1 |= USART_CR1_RXNEIE + USART_CR1_TCIE;
+
+    USART2->CR1 |= USART_CR1_RXNEIE;
+    NVIC_SetPriority(USART2_IRQn, 2);
+    NVIC_EnableIRQ(USART2_IRQn);
 }
 
 void ConfigureUART()
@@ -43,7 +49,7 @@ void ConfigureUART()
     RCC->APB1ENR |= RCC_APB1ENR_USART2EN;
 
     // enable receiver and transmitter
-    USART2->CR1 |= USART_CR1_TE + USART_CR1_RE;
+    USART2->CR1 |= USART_CR1_TE | USART_CR1_RE;
 
     /*
         - Word length, stop bits, hw control and parity maintained with the initial values:
@@ -71,10 +77,11 @@ void ConfigureUART()
 
 void SendAck()
 {
-    if(g_tx_position < sizeof(ACK_MESSAGE))
+    if(g_tx_position <= sizeof(ACK_MESSAGE))
     {
         // automatically clear the transfer interruption flag
         USART2->TDR = ACK_MESSAGE[g_tx_position];
+        USART2->CR1 |= USART_CR1_TCIE;
         g_tx_position++;
     }
     else
@@ -88,16 +95,30 @@ void SendAck()
 void USART2_IRQHandler()
 {
     // rx interrupt
-    if((USART2->ISR & USART_ISR_RXNE))
+    if(USART2->ISR & USART_ISR_RXNE)
     {
-        g_buffer_uart_rx[g_rx_position] = USART2->RDR;
-        g_rx_position++;
-        GPIOA->ODR |= BIT5;
+        char rx_data = (char) USART2->RDR;
+        if(rx_data != 0x0d)
+        {
+            g_buffer_uart_rx[g_rx_position] = rx_data;
+
+            if(g_rx_position < sizeof(g_buffer_uart_rx))
+            {
+                g_rx_position++;
+            }
+            else
+            {
+                g_rx_position = 0;
+            }
+        }
+        else
+        {
+            memset(g_buffer_uart_rx, 0, BUFFER_SIZE);
+        }
     }
     // tx complete interrupt
-    else if(USART2->ISR & USART_ISR_TXE)
+    else if(USART2->ISR & USART_ISR_TC)
     {
-        GPIOA->ODR |= BIT4;
         SendAck();
     }
     else
@@ -123,6 +144,12 @@ uint8_t strcmp(const char *sentence1, const char *sentence2)
             break;
         }
     }
+
+    if(!retval)
+    {
+        memset(g_buffer_uart_rx, 0, BUFFER_SIZE);
+    }
+
     return retval;
 }
 
@@ -132,6 +159,7 @@ void memset(char *sentence1, uint8_t content, uint8_t size_sentence)
     {
         sentence1[index] = content;
     }
+    g_rx_position = 0;
 }
 
 int main()
@@ -141,15 +169,11 @@ int main()
 
     memset(g_buffer_uart_rx, 0, BUFFER_SIZE);
 
-    // pins 4 and 5 in output mode
-    GPIOA->MODER |= 256 + 1024;
-    GPIOA->PUPDR |= 512 + 2048;
-
     while(1)
     {
         if(0 == strcmp((const char *) g_buffer_uart_rx, OK_MESSAGE))
         {
-            g_rx_position = 0;
+            g_tx_position = 0;
             SendAck();
         }
     }
